@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                         String   @id @default(uuid())
+  email                      String   @unique
+  password_hash              String
+  full_name                  String
+  role                       String   @default("USER")
+  email_verified             Boolean  @default(true)
+  email_verification_code    String?
+  email_verification_expires DateTime?
+  password_reset_code        String?
+  password_reset_expires     DateTime?
+  created_at                 DateTime @default(now())
+  orders                     Order[]
+}
+
+model Book {
+  id               String   @id @default(uuid())
+  title            String
+  author           String
+  category         String?
+  format           String?
+  publisher        String?
+  publication_year Int?
+  description      String?    @db.Text
+  price            Int
+  stock            Int      @default(0)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  images           BookImage[]
+  order_items      OrderItem[]
+}
+
+model BookImage {
+  id         String   @id @default(uuid())
+  book_id    String
+  url        String   @db.Text
+  sort_order Int      @default(0)
+  created_at DateTime @default(now())
+
+  book Book @relation(fields: [book_id], references: [id], onDelete: Cascade)
+
+  @@index([book_id, sort_order])
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  user_id        String
+  recipient_name String      @default("")
+  phone          String      @default("")
+  address        String      @default("") @db.VarChar(512)
+  total_amount   Int
+  status         String      @default("PENDING")
+  created_at     DateTime    @default(now())
+
+  user  User        @relation(fields: [user_id], references: [id])
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  order_id  String
+  book_id   String?
+  title     String
+  quantity  Int
+  unit_price Int
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  book  Book? @relation(fields: [book_id], references: [id], onDelete: SetNull)
+}
