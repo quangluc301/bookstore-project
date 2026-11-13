@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { prisma } = require('../config/db');
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -11,15 +12,29 @@ function authenticateToken(req, res, next) {
     });
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'bookstore-secret');
-    req.user = decoded;
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'bookstore-secret');
   } catch (error) {
-    return res.status(403).json({
+    return res.status(401).json({
       success: false,
       message: 'Invalid or expired token',
     });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, is_active: true },
+    });
+    if (!user || !user.is_active) {
+      return res.status(401).json({ success: false, message: 'Account is inactive' });
+    }
+
+    req.user = { ...decoded, role: user.role };
+    return next();
+  } catch (error) {
+    return next(error);
   }
 }
 

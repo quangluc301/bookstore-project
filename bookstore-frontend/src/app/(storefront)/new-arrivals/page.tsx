@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { BookCover } from '@/components/store/BookCover';
 import api from '@/lib/axios';
 import { BookType } from '@/types';
+import { formatPrice } from '@/lib/utils';
 
 export default function NewArrivalsPage() {
   const [arrivals, setArrivals] = useState<BookType[]>([]);
@@ -19,8 +20,47 @@ export default function NewArrivalsPage() {
 
   const featured = arrivals[0];
 
-  if (isLoading) return <div className="container py-16 text-center text-slate-600">Loading new arrivals...</div>;
-  if (!featured) return <div className="container py-16 text-center text-slate-600">No new arrivals are available right now.</div>;
+  if (isLoading) {
+    return (
+      <div className="bg-[#fbfaf7] text-slate-900 animate-pulse">
+        {/* Skeleton hero */}
+        <section className="border-b border-[#d9e3dc] bg-[#edf2ee]">
+          <div className="container grid gap-10 py-12 md:grid-cols-[1fr_0.8fr] md:items-center md:py-16">
+            <div className="space-y-5">
+              <div className="h-4 w-28 rounded-full bg-[#c8d8cc]" />
+              <div className="h-14 w-3/4 rounded-xl bg-[#c8d8cc]" />
+              <div className="h-5 w-full max-w-lg rounded-lg bg-[#c8d8cc]" />
+              <div className="h-5 w-48 rounded-lg bg-[#c8d8cc]" />
+            </div>
+            <div className="mx-auto h-[270px] w-full max-w-md rounded-[4px] bg-[#c8d8cc] md:h-[320px]" />
+          </div>
+        </section>
+        {/* Skeleton list */}
+        <section className="container py-12 md:py-16">
+          <div className="mb-8 h-10 w-56 rounded-xl bg-slate-200" />
+          <div className="divide-y divide-slate-200 border-y border-slate-200">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid gap-5 py-6 sm:grid-cols-[56px_100px_minmax(0,1fr)_auto] sm:items-center sm:gap-7">
+                <div className="h-8 w-8 rounded bg-slate-200" />
+                <div className="h-28 w-full max-w-[100px] rounded-lg bg-slate-200" />
+                <div className="space-y-2">
+                  <div className="h-4 w-20 rounded bg-slate-200" />
+                  <div className="h-6 w-3/4 rounded bg-slate-200" />
+                  <div className="h-4 w-1/2 rounded bg-slate-200" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-5 w-20 rounded bg-slate-200" />
+                  <div className="h-5 w-16 rounded bg-slate-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (!featured) return <div className="container py-16 text-center text-slate-600">Hiện chưa có sách mới.</div>;
 
   return (
     <div className="bg-[#fbfaf7] text-slate-900">
@@ -28,14 +68,14 @@ export default function NewArrivalsPage() {
         <div className="container grid gap-10 py-12 md:grid-cols-[1fr_0.8fr] md:items-center md:py-16">
           <div>
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-[#426c56]">
-              <span className="h-2 w-2 rounded-full bg-[#e56b4a]" /> The latest shelf
+              <span className="h-2 w-2 rounded-full bg-[#e56b4a]" /> Sách mới nhất
             </p>
-            <h1 className="mt-5 max-w-xl font-serif text-5xl leading-[1.05] md:text-6xl">New reads. New ways of seeing.</h1>
+            <h1 className="mt-5 max-w-xl font-serif text-5xl leading-[1.05] md:text-6xl">Trang sách mới, góc nhìn mới.</h1>
             <p className="mt-5 max-w-lg text-base leading-7 text-slate-600">
               Sách mới được thêm gần đây, sắp xếp theo thời điểm cập nhật trong cửa hàng.
             </p>
             <a href="#latest" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#315c45] underline underline-offset-4">
-              Meet the latest arrivals <ArrowDownRight size={17} />
+              Khám phá sách mới <ArrowDownRight size={17} />
             </a>
           </div>
 
@@ -49,7 +89,7 @@ export default function NewArrivalsPage() {
                 <p className="mt-3 font-serif text-3xl">{featured.title}</p>
                 <p className="mt-2 text-sm text-white/75">{featured.author}</p>
                 <Link href={`/books/${featured.id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white hover:text-[#f1c59b]">
-                  Discover the book <ArrowUpRight size={16} />
+                  Khám phá cuốn sách <ArrowUpRight size={16} />
                 </Link>
               </div>
             </div>
@@ -60,10 +100,10 @@ export default function NewArrivalsPage() {
       <section id="latest" className="container py-12 md:py-16">
         <div className="mb-8 flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bd573b]">Recently added</p>
-            <h2 className="mt-2 font-serif text-3xl">Fresh on the shelves</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#bd573b]">Mới được thêm</p>
+            <h2 className="mt-2 font-serif text-3xl">Sách vừa lên kệ</h2>
           </div>
-          <p className="text-sm text-slate-500">A short list, updated as new titles arrive.</p>
+          <p className="text-sm text-slate-500">Danh sách được cập nhật khi có tựa sách mới.</p>
         </div>
 
         <div className="divide-y divide-slate-200 border-y border-slate-200">
@@ -72,16 +112,16 @@ export default function NewArrivalsPage() {
               <span className="font-serif text-2xl text-[#bd573b]">{String(index + 1).padStart(2, '0')}</span>
               <BookCover title={book.title} imageUrl={book.images?.[0]?.url} className="h-28 w-full max-w-[100px]" />
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#bd573b]">{book.category || 'New arrival'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#bd573b]">{book.category || 'Sách mới'}</p>
                 <h3 className="mt-1 font-serif text-2xl">{book.title}</h3>
                 <p className="mt-1 text-sm text-slate-500">{book.author}</p>
                 {book.publisher && <p className="mt-2 text-sm text-slate-600">Nhà xuất bản: {book.publisher}</p>}
                 {book.description && <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">{book.description}</p>}
               </div>
               <div className="flex items-center justify-between gap-5 sm:flex-col sm:items-end">
-                <span className="text-sm font-bold">{book.price.toLocaleString()}₫</span>
+                <span className="text-sm font-bold">{formatPrice(book.price)}</span>
                 <Link href={`/books/${book.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-[#315c45] hover:underline">
-                  View title <ArrowUpRight size={15} />
+                  Xem sách <ArrowUpRight size={15} />
                 </Link>
               </div>
             </article>
@@ -90,11 +130,11 @@ export default function NewArrivalsPage() {
 
         <div className="mt-10 flex flex-col gap-4 border-l-4 border-[#e56b4a] bg-[#f2eee5] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
-            <p className="font-serif text-xl">Still looking for something else?</p>
-            <p className="mt-1 text-sm text-slate-600">Browse the complete catalog by title, author, or category.</p>
+            <p className="font-serif text-xl">Bạn đang tìm một cuốn sách khác?</p>
+            <p className="mt-1 text-sm text-slate-600">Tìm trong danh mục theo tên sách, tác giả hoặc thể loại.</p>
           </div>
           <Link href="/books" className="inline-flex shrink-0 items-center gap-2 text-sm font-bold text-slate-900 underline underline-offset-4">
-            Explore all books <ArrowUpRight size={16} />
+            Xem tất cả sách <ArrowUpRight size={16} />
           </Link>
         </div>
       </section>

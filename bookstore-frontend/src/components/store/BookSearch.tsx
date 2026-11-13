@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import api from '@/lib/axios';
 import { BookType } from '@/types';
+import { formatPrice } from '@/lib/utils';
 
 export default function BookSearch() {
   const router = useRouter();
@@ -74,7 +75,7 @@ export default function BookSearch() {
         <input
           type="search"
           role="combobox"
-          aria-label="Search books by title or author"
+          aria-label="Tìm sách theo tên hoặc tác giả"
           aria-autocomplete="list"
           aria-expanded={isOpen && Boolean(normalizedQuery)}
           aria-controls="book-search-suggestions"
@@ -89,16 +90,16 @@ export default function BookSearch() {
           onFocus={() => setIsOpen(Boolean(normalizedQuery))}
           onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
           onKeyDown={handleKeyDown}
-          placeholder="Search books..."
+          placeholder="Tìm sách..."
           className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
         />
-        <button type="submit" aria-label="Search books" className="flex h-full w-11 shrink-0 items-center justify-center bg-rose-500 text-white transition hover:bg-rose-600">
+        <button type="submit" aria-label="Tìm kiếm sách" className="flex h-full w-11 shrink-0 items-center justify-center bg-rose-500 text-white transition hover:bg-rose-600">
           <Search size={18} />
         </button>
       </form>
 
       {isOpen && normalizedQuery && (
-        <div id="book-search-suggestions" role="listbox" aria-label="Book suggestions" className="absolute left-0 right-0 top-full z-[70] mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+        <div id="book-search-suggestions" role="listbox" aria-label="Gợi ý sách" className="absolute left-0 right-0 top-full z-[70] mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
           {suggestions.length > 0 ? suggestions.map((book, index) => (
             <Link
               id={`book-suggestion-${book.id}`}
@@ -114,7 +115,7 @@ export default function BookSearch() {
                 <span className="block truncate text-sm font-semibold text-slate-900">{book.title}</span>
                 <span className="mt-0.5 block truncate text-xs text-slate-500">{book.author}</span>
               </span>
-              <span className="shrink-0 text-xs font-semibold text-slate-600">{book.price.toLocaleString()}₫</span>
+              <span className="shrink-0 text-xs font-semibold text-slate-600">{formatPrice(book.price)}</span>
             </Link>
           )) : (
             <p className="px-4 py-3 text-sm text-slate-500">Không tìm thấy sách phù hợp.</p>

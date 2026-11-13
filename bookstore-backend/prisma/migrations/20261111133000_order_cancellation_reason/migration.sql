@@ -1,0 +1,1 @@
+ALTER TABLE `Order` ADD COLUMN `cancellation_reason` VARCHAR(191) NULL;

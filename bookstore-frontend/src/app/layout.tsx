@@ -3,13 +3,13 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Bookstore',
-  description: 'Bookstore frontend',
+  title: 'Bookly | Nhà sách trực tuyến',
+  description: 'Khám phá sách hay và đặt mua trực tuyến tại Bookly.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <body>{children}</body>
     </html>
   );

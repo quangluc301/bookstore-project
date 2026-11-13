@@ -1,0 +1,3 @@
+ALTER TABLE `User`
+    ADD COLUMN `phone` VARCHAR(32) NULL,
+    ADD COLUMN `address` VARCHAR(512) NULL;

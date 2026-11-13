@@ -3,15 +3,17 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, PackageCheck, Save, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, LogOut, PackageCheck, Save, ShieldCheck } from 'lucide-react';
 import api from '@/lib/axios';
 import { useAuthStore } from '@/store/authStore';
 import { OrderType, UserType } from '@/types';
+import { formatDate, formatPrice, translateApiMessage, translateOrderStatus } from '@/lib/utils';
 
-type Profile = Pick<UserType, 'id' | 'email' | 'full_name' | 'role' | 'created_at'>;
+type Profile = Pick<UserType, 'id' | 'email' | 'full_name' | 'phone' | 'address' | 'role' | 'created_at'>;
 
 function getRequestError(error: unknown, fallback: string) {
-  return (error as { response?: { data?: { message?: string } } }).response?.data?.message || fallback;
+  const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+  return translateApiMessage(message, fallback);
 }
 
 export default function AccountPage() {
@@ -20,6 +22,7 @@ export default function AccountPage() {
   const updateSession = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
   const [hydrated, setHydrated] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,11 +30,15 @@ export default function AccountPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
   const [profileError, setProfileError] = useState('');
+  const [ordersError, setOrdersError] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (useAuthStore.persist.hasHydrated()) {
@@ -53,13 +60,22 @@ export default function AccountPage() {
 
     let active = true;
     setIsLoading(true);
-    Promise.all([api.get('/auth/me'), api.get('/orders')])
-      .then(([profileResponse, ordersResponse]) => {
+    setProfileError('');
+    setOrdersError('');
+    Promise.allSettled([api.get('/auth/me'), api.get('/orders')])
+      .then(([profileResult, ordersResult]) => {
         if (!active) return;
-        const user: Profile = profileResponse.data.data;
+        if (profileResult.status === 'rejected') throw profileResult.reason;
+
+        const user: Profile = profileResult.value.data.data;
         setProfile(user);
-        setOrders(ordersResponse.data.data);
         updateSession(user, token);
+        if (ordersResult.status === 'fulfilled') {
+          setOrders(ordersResult.value.data.data);
+        } else {
+          setOrders([]);
+          setOrdersError(getRequestError(ordersResult.reason, 'Không thể tải đơn hàng lúc này.'));
+        }
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -75,7 +91,7 @@ export default function AccountPage() {
       });
 
     return () => { active = false; };
-  }, [hydrated, token, logout, router, updateSession]);
+  }, [hydrated, token, loadAttempt, logout, router, updateSession]);
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,7 +100,11 @@ export default function AccountPage() {
     setProfileError('');
     setProfileMessage('');
     try {
-      const response = await api.patch('/auth/me', { full_name: profile.full_name });
+      const response = await api.patch('/auth/me', {
+        full_name: profile.full_name,
+        phone: profile.phone || '',
+        address: profile.address || '',
+      });
       setProfile(response.data.data);
       if (token) updateSession(response.data.data, token);
       setProfileMessage('Đã cập nhật hồ sơ.');
@@ -130,7 +150,17 @@ export default function AccountPage() {
     return <div className="container py-16 text-center text-slate-600">Đang tải hồ sơ...</div>;
   }
 
-  if (!token || !profile) return null;
+  if (!token) return null;
+  if (!profile) {
+    return (
+      <div className="container py-16 text-center">
+        <p className="text-sm text-rose-700" role="alert">{profileError || 'Không thể tải hồ sơ lúc này.'}</p>
+        <button onClick={() => setLoadAttempt((attempt) => attempt + 1)} className="mt-4 rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white">
+          Thử tải lại
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-10 md:py-14">
@@ -155,7 +185,7 @@ export default function AccountPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Thông tin cá nhân</h2>
-                <p className="text-sm text-slate-500">Thành viên từ {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'gần đây'}</p>
+                <p className="text-sm text-slate-500">Thành viên từ {profile.created_at ? formatDate(profile.created_at) : 'gần đây'}</p>
               </div>
             </div>
 
@@ -167,6 +197,14 @@ export default function AccountPage() {
               <label className="block text-sm font-medium text-slate-700">
                 Email
                 <input type="email" readOnly value={profile.email} className="mt-1.5 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2.5 text-slate-600" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Số điện thoại
+                <input type="tel" autoComplete="tel" maxLength={32} value={profile.phone || ''} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Địa chỉ giao hàng
+                <textarea autoComplete="street-address" maxLength={512} rows={3} value={profile.address || ''} onChange={(event) => setProfile({ ...profile, address: event.target.value })} className="mt-1.5 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
               </label>
               <div className="flex flex-wrap items-center gap-4 pt-1">
                 <button disabled={isSavingProfile} type="submit" className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60">
@@ -188,15 +226,30 @@ export default function AccountPage() {
             <form onSubmit={changePassword} className="space-y-4">
               <label className="block text-sm font-medium text-slate-700">
                 Mật khẩu hiện tại
-                <input required minLength={8} type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2.5 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+                <div className="relative mt-1.5">
+                  <input required minLength={8} type={showCurrentPassword ? 'text' : 'password'} autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2.5 pr-11 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+                  <button type="button" onClick={() => setShowCurrentPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label={showCurrentPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                    {showCurrentPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
               </label>
               <label className="block text-sm font-medium text-slate-700">
                 Mật khẩu mới
-                <input required minLength={8} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2.5 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+                <div className="relative mt-1.5">
+                  <input required minLength={8} type={showNewPassword ? 'text' : 'password'} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2.5 pr-11 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+                  <button type="button" onClick={() => setShowNewPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                    {showNewPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
               </label>
               <label className="block text-sm font-medium text-slate-700">
                 Xác nhận mật khẩu mới
-                <input required minLength={8} type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1.5 w-full rounded-md border border-slate-300 px-3 py-2.5 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+                <div className="relative mt-1.5">
+                  <input required minLength={8} type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2.5 pr-11 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100" />
+                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                    {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
               </label>
               {passwordError && <p className="text-sm text-rose-700" role="alert">{passwordError}</p>}
               <div className="flex flex-wrap items-center gap-4">
@@ -218,7 +271,9 @@ export default function AccountPage() {
             <Link href="/orders" className="text-sm font-semibold text-rose-700 underline underline-offset-4">Tất cả</Link>
           </div>
 
-          {orders.length === 0 ? (
+          {ordersError ? (
+            <p className="py-6 text-sm text-rose-700" role="alert">{ordersError}</p>
+          ) : orders.length === 0 ? (
             <p className="py-6 text-sm text-slate-500">Bạn chưa có đơn hàng nào.</p>
           ) : (
             <ul className="divide-y divide-slate-200">
@@ -227,9 +282,9 @@ export default function AccountPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Đơn #{order.id.slice(0, 8)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleDateString() : ''} · {order.status}</p>
+                      <p className="mt-1 text-xs text-slate-500">{order.created_at ? formatDate(order.created_at) : ''} · {translateOrderStatus(order.status)}</p>
                     </div>
-                    <p className="shrink-0 text-sm font-bold text-slate-900">{order.total_amount.toLocaleString()}₫</p>
+                    <p className="shrink-0 text-sm font-bold text-slate-900">{formatPrice(order.total_amount)}</p>
                   </div>
                   <p className="mt-2 text-xs text-slate-500">{order.items?.map((item) => `${item.title} × ${item.quantity}`).join(', ')}</p>
                 </li>

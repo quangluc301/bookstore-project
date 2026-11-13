@@ -1,18 +1,35 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Trash2 } from 'lucide-react';
 import { BookCover } from '@/components/store/BookCover';
 import { useCartStore } from '@/store/cartStore';
+import { formatPrice } from '@/lib/utils';
 
 export default function CartPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const total = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+
+  if (!isMounted) {
+    return (
+      <div className="container py-16">
+        <h1 className="mb-8 text-3xl font-bold">Giỏ hàng</h1>
+        <p className="text-slate-600">Đang tải giỏ hàng...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-16">
-      <h1 className="mb-8 text-3xl font-bold">Your cart</h1>
+      <h1 className="mb-8 text-3xl font-bold">Giỏ hàng</h1>
 
       {items.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
@@ -29,12 +46,12 @@ export default function CartPage() {
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900">{item.title}</p>
                     <p className="mt-1 text-sm text-slate-600">Số lượng: {item.quantity}</p>
-                    <p className="mt-1 text-sm text-slate-500">{item.price.toLocaleString()}₫ / cuốn</p>
+                    <p className="mt-1 text-sm text-slate-500">{formatPrice(item.price)} / cuốn</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="whitespace-nowrap font-bold text-slate-900">{(item.quantity * item.price).toLocaleString()}₫</p>
-                  <button onClick={() => removeItem(item.id)} aria-label={`Remove ${item.title}`} className="rounded p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+                  <p className="whitespace-nowrap font-bold text-slate-900">{formatPrice(item.quantity * item.price)}</p>
+                  <button onClick={() => removeItem(item.id)} aria-label={`Xóa ${item.title}`} className="rounded p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -43,16 +60,16 @@ export default function CartPage() {
           </div>
 
           <div className="h-fit rounded-xl bg-slate-900 p-6 text-white">
-            <h2 className="text-xl font-semibold">Order summary</h2>
+            <h2 className="text-xl font-semibold">Tóm tắt đơn hàng</h2>
             <div className="mt-6 flex items-center justify-between text-slate-300">
               <span>Tạm tính</span>
-              <span>{total.toLocaleString()}₫</span>
+              <span>{formatPrice(total)}</span>
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-slate-700 pt-4">
               <span className="font-semibold">Tổng cộng</span>
-              <span className="text-xl font-bold">{total.toLocaleString()}₫</span>
+              <span className="text-xl font-bold">{formatPrice(total)}</span>
             </div>
-            <Link href="/checkout" className="mt-8 block w-full rounded bg-white px-4 py-3 text-center font-medium text-slate-900 hover:bg-slate-100">Proceed to checkout</Link>
+            <Link href="/checkout" className="mt-8 block w-full rounded bg-white px-4 py-3 text-center font-medium text-slate-900 hover:bg-slate-100">Tiến hành thanh toán</Link>
           </div>
         </div>
       )}

@@ -23,7 +23,7 @@ export default function AccountLink() {
   const href = hydrated && token ? '/account' : '/login';
 
   return (
-    <Link href={href} aria-label="Account" title="Account" className="text-slate-700 transition hover:text-rose-600">
+    <Link href={href} aria-label="Tài khoản" title="Tài khoản" className="text-slate-700 transition hover:text-rose-600">
       <UserRound size={20} />
     </Link>
   );

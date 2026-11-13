@@ -1,6 +1,7 @@
 const {
   getAllBooks,
   getNewArrivals,
+  getBestSellersByCategory,
   createBook,
   getBookById,
   updateBookById,
@@ -32,6 +33,15 @@ async function getArrivals(req, res, next) {
     const requestedLimit = Number(req.query.limit) || 12;
     const books = await getNewArrivals(Math.min(Math.max(requestedLimit, 1), 50));
     res.status(200).json({ success: true, data: books });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getBestSellers(req, res, next) {
+  try {
+    const groups = await getBestSellersByCategory();
+    res.status(200).json({ success: true, data: groups });
   } catch (error) {
     next(error);
   }
@@ -108,6 +118,7 @@ async function deleteBook(req, res, next) {
 module.exports = {
   getBooks,
   getArrivals,
+  getBestSellers,
   getAdminBooks,
   createBook: createNewBook,
   getBook,

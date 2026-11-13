@@ -1,32 +1,23 @@
 import Link from 'next/link';
-
-const links = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/books', label: 'Books' },
-  { href: '/admin/orders', label: 'Orders' },
-];
+import { Store } from 'lucide-react';
+import { Sidebar } from '@/components/admin/Sidebar';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <aside className="w-72 bg-slate-900 p-6 text-white">
-        <h1 className="text-2xl font-bold">Bookstore Admin</h1>
-        <nav className="mt-8 space-y-3">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="block rounded px-3 py-2 hover:bg-slate-800">
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-
-      <main className="flex-1 p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-900">Administration</h2>
-          <Link href="/" className="rounded bg-slate-900 px-4 py-2 text-white">View storefront</Link>
-        </div>
-        {children}
-      </main>
+    <div className="min-h-screen bg-[#f3f5fb] lg:flex">
+      <Sidebar />
+      <div className="min-w-0 flex-1">
+        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 md:px-8">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Bookly</p>
+            <h1 className="text-lg font-bold text-slate-900">Hệ thống quản trị</h1>
+          </div>
+          <Link href="/" className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            <Store size={16} /> Xem cửa hàng
+          </Link>
+        </header>
+        <main className="p-4 md:p-8">{children}</main>
+      </div>
     </div>
   );
 }

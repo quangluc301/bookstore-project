@@ -8,7 +8,7 @@ function generateToken(user) {
       role: user.role,
     },
     process.env.JWT_SECRET || 'bookstore-secret',
-    { expiresIn: '7d' }
+    { expiresIn: '365d' }
   );
 }
 

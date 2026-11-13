@@ -17,8 +17,10 @@ async function register(req, res, next) {
 
     res.status(201).json({
       success: true,
-      message: 'Verification code sent to your email',
-      data: user,
+      message: user.delivery === 'console'
+        ? 'Verification code is shown in the backend terminal for local development.'
+        : 'Verification code sent to your email',
+      data: { email: user.email },
     });
   } catch (error) {
     next(error);
@@ -45,10 +47,12 @@ async function resendEmailVerification(req, res, next) {
 
 async function forgotPassword(req, res, next) {
   try {
-    await requestPasswordReset(req.body);
+    const delivery = await requestPasswordReset(req.body);
     res.status(200).json({
       success: true,
-      message: 'If an account exists for that email, a reset code has been sent.',
+      message: delivery === 'console'
+        ? 'If an account exists, its reset code is shown in the backend terminal.'
+        : 'If an account exists for that email, a reset code has been sent.',
     });
   } catch (error) {
     next(error);

@@ -1,7 +1,9 @@
 const express = require('express');
 const {
 	create,
+	createAdmin,
 	getMyOrders,
+	cancelMyOrder,
 	getAdminOrders,
 	updateStatus,
 	getAdminDashboard,
@@ -13,6 +15,8 @@ const router = express.Router();
 router.use(authenticateToken);
 router.get('/admin/stats', authorizeAdmin, getAdminDashboard);
 router.get('/admin/all', authorizeAdmin, getAdminOrders);
+router.post('/admin', authorizeAdmin, createAdmin);
+router.patch('/:id/cancel', cancelMyOrder);
 router.post('/', create);
 router.get('/', getMyOrders);
 router.patch('/:id/status', authorizeAdmin, updateStatus);

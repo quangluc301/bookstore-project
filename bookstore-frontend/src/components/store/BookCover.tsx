@@ -28,7 +28,7 @@ export function BookCover({
           fill
           unoptimized
           sizes="(max-width: 768px) 100vw, 400px"
-          className="object-cover"
+          className="object-contain"
           onError={() => setFailedUrl(imageUrl || null)}
         />
       ) : (

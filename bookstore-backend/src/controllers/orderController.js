@@ -1,6 +1,8 @@
 const {
   createOrder,
+  createAdminOrder: createAdminOrderService,
   getOrdersByUser,
+  cancelOrderByCustomer,
   getAllOrders,
   updateOrderStatus,
   getDashboardStats,
@@ -23,6 +25,18 @@ async function create(req, res, next) {
   }
 }
 
+async function createAdmin(req, res, next) {
+  try {
+    const order = await createAdminOrderService({
+      ...req.body,
+      userId: req.body.user_id,
+    });
+    res.status(201).json({ success: true, data: order });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getMyOrders(req, res, next) {
   try {
     const orders = await getOrdersByUser(req.user.id);
@@ -31,6 +45,15 @@ async function getMyOrders(req, res, next) {
       success: true,
       data: orders,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function cancelMyOrder(req, res, next) {
+  try {
+    const order = await cancelOrderByCustomer(req.params.id, req.user.id, req.body.reason);
+    res.status(200).json({ success: true, data: order });
   } catch (error) {
     next(error);
   }
@@ -65,7 +88,9 @@ async function getAdminDashboard(req, res, next) {
 
 module.exports = {
   create,
+  createAdmin,
   getMyOrders,
+  cancelMyOrder,
   getAdminOrders,
   updateStatus,
   getAdminDashboard,

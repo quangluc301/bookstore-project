@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { prisma } = require('../config/db');
 const { hashPassword, comparePassword } = require('../utils/hashPassword');
 const { generateToken } = require('../utils/jwtToken');
-const { sendOtpEmail } = require('../utils/email');
+const { sendOtpEmail, getOtpDeliveryMode } = require('../utils/email');
 
 const OTP_LIFETIME_MS = 10 * 60 * 1000;
 
@@ -10,6 +10,12 @@ function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+}
+
+function ensureOtpDeliveryAvailable() {
+  if (getOtpDeliveryMode() === 'unavailable') {
+    throw createError('Email delivery is not configured', 503);
+  }
 }
 
 function createOtp() {
@@ -40,17 +46,26 @@ async function sendVerificationCode(user) {
       email_verification_expires: new Date(Date.now() + OTP_LIFETIME_MS),
     },
   });
-  await sendOtpEmail(user.email, code, 'verification');
+  return sendOtpEmail(user.email, code, 'verification');
 }
 
 async function registerUser({ email, password, full_name }) {
-  if (!email || !password || !full_name) {
+  ensureOtpDeliveryAvailable();
+  if (typeof email !== 'string' || typeof password !== 'string' || typeof full_name !== 'string') {
     throw createError('Email, password, and full name are required', 400);
   }
 
-  if (password.length < 8) throw createError('Password must be at least 8 characters', 400);
-
   const normalizedEmail = normalizeEmail(email);
+  const normalizedFullName = full_name.trim();
+  if (!normalizedEmail || !normalizedFullName) {
+    throw createError('Email, password, and full name are required', 400);
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw createError('A valid email address is required', 400);
+  }
+  if (password.length < 8) throw createError('Password must be at least 8 characters', 400);
+  if (normalizedFullName.length > 191) throw createError('Full name is too long', 400);
+
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
   });
@@ -64,16 +79,16 @@ async function registerUser({ email, password, full_name }) {
         data: {
           email: normalizedEmail,
           password_hash,
-          full_name: full_name.trim(),
+          full_name: normalizedFullName,
           email_verified: false,
         },
       });
 
   if (existingUser) {
-    await prisma.user.update({ where: { id: user.id }, data: { password_hash, full_name: full_name.trim() } });
+    await prisma.user.update({ where: { id: user.id }, data: { password_hash, full_name: normalizedFullName } });
   }
-  await sendVerificationCode(user);
-  return { email: user.email };
+  const delivery = await sendVerificationCode(user);
+  return { email: user.email, delivery };
 }
 
 async function verifyEmail({ email, code }) {
@@ -97,14 +112,22 @@ async function verifyEmail({ email, code }) {
 }
 
 async function resendVerificationCode({ email }) {
+  ensureOtpDeliveryAvailable();
   const user = await prisma.user.findUnique({ where: { email: normalizeEmail(email) } });
   if (user && !user.email_verified) await sendVerificationCode(user);
-  return { message: 'If the account needs verification, a new code has been sent.' };
+  const delivery = getOtpDeliveryMode();
+  return {
+    message: delivery === 'console'
+      ? 'If the account needs verification, its code is shown in the backend terminal.'
+      : 'If the account needs verification, a new code has been sent.',
+  };
 }
 
 async function requestPasswordReset({ email }) {
+  ensureOtpDeliveryAvailable();
   const user = await prisma.user.findUnique({ where: { email: normalizeEmail(email) } });
-  if (!user || !user.email_verified) return;
+  const delivery = getOtpDeliveryMode();
+  if (!user || !user.email_verified) return delivery;
 
   const code = createOtp();
   await prisma.user.update({
@@ -114,7 +137,7 @@ async function requestPasswordReset({ email }) {
       password_reset_expires: new Date(Date.now() + OTP_LIFETIME_MS),
     },
   });
-  await sendOtpEmail(user.email, code, 'password-reset');
+  return sendOtpEmail(user.email, code, 'password-reset');
 }
 
 async function resetPassword({ email, code, password }) {
@@ -140,7 +163,7 @@ async function resetPassword({ email, code, password }) {
 
 async function loginUser({ email, password }) {
   if (!email || !password) {
-    throw new Error('Email and password are required');
+    throw createError('Email and password are required', 400);
   }
 
   const user = await prisma.user.findUnique({
@@ -148,15 +171,16 @@ async function loginUser({ email, password }) {
   });
 
   if (!user) {
-    throw new Error('Invalid credentials');
+    throw createError('Invalid credentials', 401);
   }
 
+  if (!user.is_active) throw createError('Account is inactive', 403);
   if (!user.email_verified) throw createError('Please verify your email before signing in', 403);
 
   const isMatch = await comparePassword(password, user.password_hash);
 
   if (!isMatch) {
-    throw new Error('Invalid credentials');
+    throw createError('Invalid credentials', 401);
   }
 
   const token = generateToken(user);
@@ -179,6 +203,8 @@ async function getUserProfile(userId) {
       id: true,
       email: true,
       full_name: true,
+      phone: true,
+      address: true,
       role: true,
       created_at: true,
     },
@@ -191,7 +217,7 @@ async function getUserProfile(userId) {
   return user;
 }
 
-async function updateUserProfile(userId, { full_name }) {
+async function updateUserProfile(userId, { full_name, phone, address }) {
   if (typeof full_name !== 'string' || !full_name.trim()) {
     throw createError('Full name is required', 400);
   }
@@ -199,13 +225,29 @@ async function updateUserProfile(userId, { full_name }) {
     throw createError('Full name is too long', 400);
   }
 
+  const data = { full_name: full_name.trim() };
+  if (phone !== undefined) {
+    if (typeof phone !== 'string' || phone.trim().length > 32) {
+      throw createError('Phone number is invalid', 400);
+    }
+    data.phone = phone.trim() || null;
+  }
+  if (address !== undefined) {
+    if (typeof address !== 'string' || address.trim().length > 512) {
+      throw createError('Address is invalid', 400);
+    }
+    data.address = address.trim() || null;
+  }
+
   return prisma.user.update({
     where: { id: userId },
-    data: { full_name: full_name.trim() },
+    data,
     select: {
       id: true,
       email: true,
       full_name: true,
+      phone: true,
+      address: true,
       role: true,
       created_at: true,
     },

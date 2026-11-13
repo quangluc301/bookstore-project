@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, Minus, Plus, Store, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { BookCover } from '@/components/store/BookCover';
 import api from '@/lib/axios';
 import { BookType } from '@/types';
+import { formatPrice } from '@/lib/utils';
 
 type BookDetail = BookType;
 
@@ -23,18 +25,23 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.get(`/books/${params.id}`), api.get('/books')])
-      .then(([bookResponse, booksResponse]) => {
+    // Load sách chính trước để hiển thị ngay
+    api.get(`/books/${params.id}`)
+      .then((bookResponse) => {
         if (!active) return;
-        setBook({
-          ...bookResponse.data.data,
-        });
+        setBook({ ...bookResponse.data.data });
         setSelectedImageIndex(0);
-        setRelatedBooks(booksResponse.data.data.filter((item: BookType) => item.id !== params.id).slice(0, 3));
       })
       .catch(() => {
-        if (active) setLoadError('This book could not be found.');
+        if (active) setLoadError('Không tìm thấy cuốn sách này.');
       });
+    // Load sách liên quan song song nhưng không block render
+    api.get('/books')
+      .then((booksResponse) => {
+        if (!active) return;
+        setRelatedBooks(booksResponse.data.data.filter((item: BookType) => item.id !== params.id).slice(0, 3));
+      })
+      .catch(() => {/* silent fail cho related books */});
     return () => { active = false; };
   }, [params.id]);
 
@@ -51,7 +58,33 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
   };
 
   if (!book) {
-    return <div className="container py-16 text-center text-slate-600">{loadError || 'Loading book...'}</div>;
+    return (
+      <div className="container py-10 md:py-14 animate-pulse">
+        {loadError ? (
+          <p className="py-16 text-center text-slate-600">{loadError}</p>
+        ) : (
+          <div className="rounded-[30px] bg-white p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)] md:p-8">
+            <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+              {/* Skeleton ảnh */}
+              <div className="h-[560px] rounded-[28px] bg-slate-100" />
+              {/* Skeleton nội dung */}
+              <div className="flex flex-col justify-center space-y-4">
+                <div className="h-5 w-24 rounded-full bg-slate-100" />
+                <div className="h-10 w-3/4 rounded-xl bg-slate-100" />
+                <div className="h-6 w-1/2 rounded-lg bg-slate-100" />
+                <div className="mt-4 h-10 w-32 rounded-xl bg-slate-100" />
+                <div className="h-5 w-40 rounded-lg bg-slate-100" />
+                <div className="h-20 w-full rounded-[24px] bg-slate-100" />
+                <div className="flex gap-3">
+                  <div className="h-12 w-32 rounded-full bg-slate-100" />
+                  <div className="h-12 w-32 rounded-full bg-slate-100" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -60,9 +93,9 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <div className="mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              <span>Home</span>
+              <span>Trang chủ</span>
               <span>/</span>
-              <span>Books</span>
+              <span>Sách</span>
               <span>/</span>
               <span className="text-slate-700">{book.title}</span>
             </div>
@@ -73,7 +106,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                   <button
                     key={image.id}
                     type="button"
-                    aria-label={`Show image ${index + 1}`}
+                    aria-label={`Xem ảnh ${index + 1}`}
                     aria-pressed={selectedImageIndex === index}
                     onClick={() => setSelectedImageIndex(index)}
                     className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-white ${selectedImageIndex === index ? 'border-slate-900' : 'border-slate-200'}`}
@@ -95,13 +128,13 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
           <div className="flex flex-col justify-center">
               <span className="mb-3 inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700">
-              {book.category || 'Books'}
+              {book.category || 'Sách'}
             </span>
             <h1 className="text-3xl font-black text-slate-900 md:text-5xl">{book.title}</h1>
-            <p className="mt-3 text-lg text-slate-600">by {book.author}</p>
+            <p className="mt-3 text-lg text-slate-600">Tác giả: {book.author}</p>
 
             <div className="mt-6 flex items-end gap-3">
-              <span className="text-4xl font-black text-slate-900">{book.price.toLocaleString()}₫</span>
+              <span className="text-4xl font-black text-slate-900">{formatPrice(book.price)}</span>
             </div>
 
             <div className="mt-5 flex items-center gap-3 text-sm">
@@ -116,26 +149,26 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-slate-50">
-                <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity" className="h-12 w-12 text-xl font-medium text-slate-600">-</button>
+                <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Giảm số lượng" className="h-12 w-12 text-xl font-medium text-slate-600">-</button>
                 <span className="w-12 text-center text-base font-semibold text-slate-900">{quantity}</span>
-                <button onClick={() => setQuantity((value) => Math.min(book.stock, value + 1))} aria-label="Increase quantity" className="h-12 w-12 text-xl font-medium text-slate-600">+</button>
+                <button onClick={() => setQuantity((value) => Math.min(book.stock, value + 1))} aria-label="Tăng số lượng" className="h-12 w-12 text-xl font-medium text-slate-600">+</button>
               </div>
 
               <button onClick={addCurrentBookToCart} className="rounded-full bg-slate-900 px-7 py-3 text-sm font-semibold text-white transition hover:bg-slate-700">
-                Add to cart
+                Thêm vào giỏ
               </button>
               <button onClick={() => setIsBuySheetOpen(true)} className="rounded-full border border-slate-300 bg-white px-7 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-400">
-                Buy now
+                Mua ngay
               </button>
             </div>
             <div className="mt-8 grid gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Format</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Định dạng</p>
                 <p className="mt-2 font-semibold text-slate-900">{book.format || 'Chưa cập nhật'}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Delivery</p>
-                <p className="mt-2 font-semibold text-slate-900">2-4 days</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Giao hàng</p>
+                <p className="mt-2 font-semibold text-slate-900">2–4 ngày</p>
               </div>
             </div>
           </div>
@@ -144,9 +177,9 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
 
       <div className="mt-12 rounded-[30px] bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] md:p-8">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h2 className="text-2xl font-black text-slate-900">Product description</h2>
+          <h2 className="text-2xl font-black text-slate-900">Mô tả sách</h2>
           <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Details
+            Chi tiết
           </span>
         </div>
 
@@ -160,12 +193,12 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
       <div className="mt-12">
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">You may also like</p>
-            <h2 className="mt-2 text-3xl font-black text-slate-900">Related books</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Gợi ý dành cho bạn</p>
+            <h2 className="mt-2 text-3xl font-black text-slate-900">Sách liên quan</h2>
           </div>
-          <a href="/books" className="text-sm font-semibold text-slate-700 underline-offset-4 hover:underline">
-            Browse all
-          </a>
+          <Link href="/books" className="text-sm font-semibold text-slate-700 underline-offset-4 hover:underline">
+            Xem tất cả
+          </Link>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -177,10 +210,10 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                 <h3 className="text-xl font-bold text-slate-900">{item.title}</h3>
                 <p className="mt-1 text-sm text-slate-500">{item.author}</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-black text-slate-900">{item.price.toLocaleString()}₫</span>
-                  <a href={`/books/${item.id}`} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
-                    View
-                  </a>
+                  <span className="text-lg font-black text-slate-900">{formatPrice(item.price)}</span>
+                  <Link href={`/books/${item.id}`} className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+                    Xem sách
+                  </Link>
                 </div>
               </div>
             </article>
@@ -198,7 +231,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="relative grid gap-6 p-5 sm:grid-cols-[minmax(180px,265px)_1fr] sm:items-center sm:p-7">
-              <button onClick={() => setIsBuySheetOpen(false)} aria-label="Close" className="absolute right-4 top-4 z-10 rounded-full bg-white/90 p-2 text-slate-500 transition hover:text-slate-900">
+              <button onClick={() => setIsBuySheetOpen(false)} aria-label="Đóng" className="absolute right-4 top-4 z-10 rounded-full bg-white/90 p-2 text-slate-500 transition hover:text-slate-900">
                 <X size={24} />
               </button>
               <BookCover title={book.title} imageUrl={book.images?.[0]?.url} className="aspect-square rounded-2xl" />
@@ -206,10 +239,10 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                 <h2 id="buy-sheet-title" className="text-xl font-bold text-slate-900">{book.title}</h2>
                 <p className="mt-1 text-sm text-slate-500">{book.author}</p>
                 <div className="mt-5 flex flex-wrap items-baseline gap-2">
-                  <span className="text-3xl font-bold text-rose-600">{book.price.toLocaleString()}₫</span>
+                  <span className="text-3xl font-bold text-rose-600">{formatPrice(book.price)}</span>
                 </div>
                 <p className="mt-4 text-sm text-slate-500">Kho: còn {book.stock} cuốn</p>
-                <p className="mt-1 flex items-center gap-2 text-sm text-slate-500"><Store size={16} /> Bookly Store</p>
+                <p className="mt-1 flex items-center gap-2 text-sm text-slate-500"><Store size={16} /> Nhà sách Bookly</p>
               </div>
             </div>
 
@@ -224,9 +257,9 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
             <div className="flex items-center justify-between border-t border-slate-200 px-5 py-5 sm:px-7">
               <span className="text-lg font-medium text-slate-900">Số lượng</span>
               <div className="flex h-11 items-center overflow-hidden rounded-lg border border-slate-200">
-                <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Decrease quantity" className="h-full w-11 text-slate-500 hover:bg-slate-50"><Minus size={16} className="mx-auto" /></button>
+                <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} aria-label="Giảm số lượng" className="h-full w-11 text-slate-500 hover:bg-slate-50"><Minus size={16} className="mx-auto" /></button>
                 <span className="flex h-full w-12 items-center justify-center border-x border-slate-200 text-rose-600">{quantity}</span>
-                <button onClick={() => setQuantity((value) => Math.min(book.stock, value + 1))} aria-label="Increase quantity" className="h-full w-11 text-slate-500 hover:bg-slate-50"><Plus size={16} className="mx-auto" /></button>
+                <button onClick={() => setQuantity((value) => Math.min(book.stock, value + 1))} aria-label="Tăng số lượng" className="h-full w-11 text-slate-500 hover:bg-slate-50"><Plus size={16} className="mx-auto" /></button>
               </div>
             </div>
 
@@ -253,7 +286,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
           >
             <button
               onClick={() => setIsCartDialogOpen(false)}
-              aria-label="Close confirmation"
+              aria-label="Đóng thông báo xác nhận"
               className="absolute right-4 top-4 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             >
               <X size={20} />
@@ -268,11 +301,14 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
             </p>
             <div className="mt-5 flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3 text-sm">
               <span className="text-slate-500">Thành tiền</span>
-              <span className="font-bold text-slate-900">{(book.price * quantity).toLocaleString()}₫</span>
+              <span className="font-bold text-slate-900">{formatPrice(book.price * quantity)}</span>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button
-                onClick={() => setIsCartDialogOpen(false)}
+                onClick={() => {
+                  setQuantity(1);
+                  setIsCartDialogOpen(false);
+                }}
                 className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Tiếp tục mua sắm

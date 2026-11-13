@@ -1,9 +1,20 @@
 const nodemailer = require('nodemailer');
 
+function getOtpDeliveryMode() {
+  const { SMTP_HOST, SMTP_PORT, SMTP_FROM } = process.env;
+  if (SMTP_HOST && SMTP_PORT && SMTP_FROM) return 'email';
+  return process.env.NODE_ENV === 'production' ? 'unavailable' : 'console';
+}
+
 async function sendOtpEmail(email, code, purpose) {
   const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.env;
 
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_FROM) {
+  const deliveryMode = getOtpDeliveryMode();
+  if (deliveryMode === 'console') {
+    console.info(`[DEV ONLY] ${purpose} code for ${email}: ${code} (expires in 10 minutes)`);
+    return deliveryMode;
+  }
+  if (deliveryMode === 'unavailable') {
     const error = new Error('Email delivery is not configured');
     error.statusCode = 503;
     throw error;
@@ -24,6 +35,7 @@ async function sendOtpEmail(email, code, purpose) {
     subject,
     text: `Use this code to ${action}: ${code}. It expires in 10 minutes.`,
   });
+  return deliveryMode;
 }
 
-module.exports = { sendOtpEmail };
+module.exports = { sendOtpEmail, getOtpDeliveryMode };

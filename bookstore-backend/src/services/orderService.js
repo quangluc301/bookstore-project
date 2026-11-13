@@ -1,5 +1,13 @@
 const { prisma } = require('../config/db');
 
+const cancellationReasons = [
+  'Cập nhật lại thông tin',
+  'Đặt nhầm sản phẩm',
+  'Không còn nhu cầu',
+  'Muốn đổi sản phẩm',
+  'Thời gian giao hàng chưa phù hợp',
+];
+
 function createError(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -73,11 +81,60 @@ async function createOrder({ userId, items, recipient_name, phone, address }) {
   });
 }
 
+async function createAdminOrder({ userId, items, recipient_name, phone, address }) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, is_active: true },
+  });
+  if (!user || !user.is_active) throw createError('Customer is unavailable', 404);
+
+  return createOrder({ userId: user.id, items, recipient_name, phone, address });
+}
+
 async function getOrdersByUser(userId) {
   return prisma.order.findMany({
     where: { user_id: userId },
     orderBy: { created_at: 'desc' },
-    include: { items: true },
+    include: {
+      items: {
+        include: {
+          book: {
+            include: { images: { orderBy: { sort_order: 'asc' } } },
+          },
+        },
+      },
+    },
+  });
+}
+
+async function cancelOrderByCustomer(id, userId, reason) {
+  if (!cancellationReasons.includes(reason)) {
+    throw createError('Select a valid cancellation reason', 400);
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const order = await transaction.order.findUnique({ where: { id }, include: { items: true } });
+    if (!order || order.user_id !== userId) throw createError('Order not found', 404);
+    if (order.status !== 'PENDING') {
+      throw createError('Orders can only be cancelled while awaiting confirmation', 409);
+    }
+
+    const changed = await transaction.order.updateMany({
+      where: { id, user_id: userId, status: 'PENDING' },
+      data: { status: 'CANCELLED', cancellation_reason: reason },
+    });
+    if (changed.count !== 1) throw createError('Order status changed; reload and try again', 409);
+
+    for (const item of order.items) {
+      if (item.book_id) {
+        await transaction.book.update({
+          where: { id: item.book_id },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+
+    return transaction.order.findUnique({ where: { id }, include: { items: true } });
   });
 }
 
@@ -92,7 +149,7 @@ async function getAllOrders() {
 }
 
 async function updateOrderStatus(id, status) {
-  const allowedStatuses = ['PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+  const allowedStatuses = ['PROCESSING', 'SHIPPED', 'DELIVERED'];
   if (!allowedStatuses.includes(status)) throw createError('Invalid order status', 400);
 
   return prisma.$transaction(async (transaction) => {
@@ -107,7 +164,7 @@ async function updateOrderStatus(id, status) {
       PROCESSING: ['SHIPPED'],
       SHIPPED: ['DELIVERED'],
     };
-    if (status !== 'CANCELLED' && !transitions[order.status]?.includes(status)) {
+    if (!transitions[order.status]?.includes(status)) {
       throw createError(`Cannot change order from ${order.status} to ${status}`, 409);
     }
 
@@ -117,41 +174,34 @@ async function updateOrderStatus(id, status) {
     });
     if (changed.count !== 1) throw createError('Order status changed; reload and try again', 409);
 
-    if (status === 'CANCELLED') {
-      for (const item of order.items) {
-        if (item.book_id) {
-          await transaction.book.update({
-            where: { id: item.book_id },
-            data: { stock: { increment: item.quantity } },
-          });
-        }
-      }
-    }
-
     return transaction.order.findUnique({ where: { id }, include: { items: true } });
   });
 }
 
 async function getDashboardStats() {
-  const [totalBooks, orderCount, revenue] = await Promise.all([
+  const [totalBooks, orderCount, revenue, userCount] = await Promise.all([
     prisma.book.count({ where: { is_active: true } }),
     prisma.order.count(),
     prisma.order.aggregate({
-      where: { status: { not: 'CANCELLED' } },
+      where: { status: 'DELIVERED' },
       _sum: { total_amount: true },
     }),
+    prisma.user.count(),
   ]);
 
   return {
     total_books: totalBooks,
     total_orders: orderCount,
     revenue: revenue._sum.total_amount || 0,
+    total_users: userCount,
   };
 }
 
 module.exports = {
   createOrder,
+  createAdminOrder,
   getOrdersByUser,
+  cancelOrderByCustomer,
   getAllOrders,
   updateOrderStatus,
   getDashboardStats,

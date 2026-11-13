@@ -18,13 +18,13 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
             </div>
 
             <nav className="order-3 flex w-full items-center justify-center gap-7 text-sm font-medium text-slate-700 lg:order-none lg:ml-auto lg:w-auto">
-              <Link href="/new-arrivals" className="transition hover:text-rose-600">New arrivals</Link>
-              <Link href="/" className="transition hover:text-rose-600">Featured</Link>
-              <Link href="/books" className="transition hover:text-rose-600">Books</Link>
+              <Link href="/new-arrivals" className="transition hover:text-rose-600">Sách mới</Link>
+              <Link href="/" className="transition hover:text-rose-600">Nổi bật</Link>
+              <Link href="/books" className="transition hover:text-rose-600">Sách</Link>
             </nav>
 
             <div className="ml-auto flex shrink-0 items-center gap-4 lg:ml-0">
-              <Link href="/cart" aria-label="Cart" className="relative text-slate-700 transition hover:text-rose-600">
+              <Link href="/cart" aria-label="Giỏ hàng" className="relative text-slate-700 transition hover:text-rose-600">
                 <ShoppingBag size={20} />
               </Link>
               <AccountLink />
@@ -49,42 +49,42 @@ export default function StorefrontLayout({ children }: { children: React.ReactNo
               <p className="text-lg font-black text-white">Bookly</p>
             </div>
             <p className="max-w-xs text-sm text-slate-400">
-              Curated stories and practical reads for lifelong learners.
+              Những câu chuyện đáng nhớ và tri thức hữu ích dành cho bạn đọc Việt.
             </p>
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Explore</h3>
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Khám phá</h3>
             <ul className="space-y-3 text-sm text-slate-300">
-              <li><Link href="/new-arrivals" className="hover:text-white">New arrivals</Link></li>
-              <li><Link href="/books" className="hover:text-white">Best sellers</Link></li>
-              <li><Link href="/books" className="hover:text-white">Featured books</Link></li>
+              <li><Link href="/new-arrivals" className="hover:text-white">Sách mới</Link></li>
+              <li><Link href="/books" className="hover:text-white">Sách bán chạy</Link></li>
+              <li><Link href="/books" className="hover:text-white">Sách nổi bật</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Company</h3>
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Về Bookly</h3>
             <ul className="space-y-3 text-sm text-slate-300">
-              <li><Link href="/" className="hover:text-white">About us</Link></li>
-              <li><Link href="/" className="hover:text-white">Contact</Link></li>
-              <li><Link href="/" className="hover:text-white">Privacy policy</Link></li>
+              <li><Link href="/" className="hover:text-white">Giới thiệu</Link></li>
+              <li><Link href="/" className="hover:text-white">Liên hệ</Link></li>
+              <li><Link href="/" className="hover:text-white">Chính sách riêng tư</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Support</h3>
+            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Hỗ trợ</h3>
             <ul className="space-y-3 text-sm text-slate-300">
-              <li><Link href="/checkout" className="hover:text-white">Shipping</Link></li>
-              <li><Link href="/checkout" className="hover:text-white">Returns</Link></li>
-              <li><Link href="/account" className="hover:text-white">Account</Link></li>
+              <li><Link href="/checkout" className="hover:text-white">Giao hàng</Link></li>
+              <li><Link href="/checkout" className="hover:text-white">Đổi trả</Link></li>
+              <li><Link href="/account" className="hover:text-white">Tài khoản</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-white/10">
           <div className="container flex flex-col gap-2 py-5 text-sm text-slate-400 md:flex-row md:items-center md:justify-between">
-            <p>© 2026 Bookly. All rights reserved.</p>
-            <p>Help readers grow one page at a time.</p>
+            <p>© 2026 Bookly. Bảo lưu mọi quyền.</p>
+            <p>Cùng bạn mở rộng tri thức qua từng trang sách.</p>
           </div>
         </div>
       </footer>

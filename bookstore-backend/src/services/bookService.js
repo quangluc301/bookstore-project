@@ -80,6 +80,50 @@ async function getNewArrivals(limit = 12) {
   });
 }
 
+async function getBestSellersByCategory(limitPerCategory = 3) {
+  const orderItems = await prisma.orderItem.findMany({
+    where: {
+      book_id: { not: null },
+      order: { status: 'DELIVERED' },
+    },
+    select: { book_id: true, quantity: true },
+  });
+
+  const soldByBookId = new Map();
+  for (const item of orderItems) {
+    soldByBookId.set(item.book_id, (soldByBookId.get(item.book_id) || 0) + item.quantity);
+  }
+  if (!soldByBookId.size) return [];
+
+  const books = await prisma.book.findMany({
+    where: {
+      id: { in: [...soldByBookId.keys()] },
+      is_active: true,
+      category: { not: null },
+    },
+    include: includeImages,
+  });
+
+  const booksByCategory = new Map();
+  for (const book of books) {
+    const category = book.category?.trim();
+    if (!category) continue;
+
+    const categoryBooks = booksByCategory.get(category) || [];
+    categoryBooks.push({ ...book, sold_count: soldByBookId.get(book.id) || 0 });
+    booksByCategory.set(category, categoryBooks);
+  }
+
+  return [...booksByCategory.entries()]
+    .map(([category, categoryBooks]) => ({
+      category,
+      books: categoryBooks
+        .sort((first, second) => second.sold_count - first.sold_count || first.title.localeCompare(second.title, 'vi'))
+        .slice(0, limitPerCategory),
+    }))
+    .sort((first, second) => second.books[0].sold_count - first.books[0].sold_count || first.category.localeCompare(second.category, 'vi'));
+}
+
 async function createBook(payload) {
   const { title, author, price, stock, publisher, publication_year, category, format, description } = payload;
 
@@ -238,6 +282,7 @@ async function deleteBookById(id) {
 module.exports = {
   getAllBooks,
   getNewArrivals,
+  getBestSellersByCategory,
   createBook,
   getBookById,
   updateBookById,

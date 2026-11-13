@@ -12,7 +12,10 @@ model User {
   email                      String   @unique
   password_hash              String
   full_name                  String
+  phone                      String?  @db.VarChar(32)
+  address                    String?  @db.VarChar(512)
   role                       String   @default("USER")
+  is_active                  Boolean  @default(true)
   email_verified             Boolean  @default(true)
   email_verification_code    String?
   email_verification_expires DateTime?
@@ -59,6 +62,7 @@ model Order {
   address        String      @default("") @db.VarChar(512)
   total_amount   Int
   status         String      @default("PENDING")
+  cancellation_reason String? @db.VarChar(191)
   created_at     DateTime    @default(now())
 
   user  User        @relation(fields: [user_id], references: [id])

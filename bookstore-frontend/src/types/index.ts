@@ -18,6 +18,8 @@ export type UserType = {
   id: string;
   email: string;
   full_name: string;
+  phone?: string | null;
+  address?: string | null;
   role: string;
   created_at?: string;
 };
@@ -27,6 +29,7 @@ export type OrderType = {
   user_id: string;
   total_amount: number;
   status: string;
+  cancellation_reason?: string | null;
   recipient_name?: string;
   phone?: string;
   address?: string;
@@ -41,4 +44,5 @@ export type OrderItemType = {
   title: string;
   quantity: number;
   unit_price: number;
+  book?: Pick<BookType, 'images'> | null;
 };

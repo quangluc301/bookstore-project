@@ -7,6 +7,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        serif: ['"Segoe UI"', '"Noto Sans"', 'Tahoma', 'Arial', 'sans-serif'],
+      },
       colors: {
         primary: '#1d4ed8',
         secondary: '#111827',
